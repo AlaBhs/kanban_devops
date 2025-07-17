@@ -1,0 +1,34 @@
+# === FRONTEND ===
+kanban-frontend/node_modules/
+kanban-frontend/.pnp/
+kanban-frontend/.pnp.js
+kanban-frontend/coverage/
+kanban-frontend/build/
+
+# Frontend environment files
+kanban-frontend/.env*
+kanban-frontend/.DS_Store
+
+# Frontend logs
+kanban-frontend/npm-debug.log*
+kanban-frontend/yarn-debug.log*
+kanban-frontend/yarn-error.log*
+
+
+# === BACKEND ===
+kanban-backend/node_modules/
+kanban-backend/coverage/
+kanban-backend/dist/
+
+# Backend environment files
+kanban-backend/.env*
+kanban-backend/.DS_Store
+
+# Backend logs
+kanban-backend/npm-debug.log*
+kanban-backend/yarn-debug.log*
+kanban-backend/yarn-error.log*
+
+# === SYSTEM FILES (Global) ===
+.DS_Store
+*.log

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo
+    container_name: kanban-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./kanban-backend
+    container_name: kanban-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./kanban-backend/.env
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./kanban-frontend
+    container_name: kanban-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - .env.docker
+
+volumes:
+  mongo_data:

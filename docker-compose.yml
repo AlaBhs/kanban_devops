@@ -26,8 +26,7 @@ services:
       - "3000:80"
     depends_on:
       - backend
-    environment:
-      - .env.docker
+
 
 volumes:
   mongo_data:

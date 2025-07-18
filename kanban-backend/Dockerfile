@@ -1,18 +1,13 @@
-# Step 1: Use an official Node.js base image
-FROM node:20
-
-# Step 2: Set the working directory
+# Step 1: Builder stage
+FROM node:20 as builder
 WORKDIR /app
-
-# Step 3: Copy package files and install deps
 COPY package*.json ./
-RUN npm install
-
-# Step 4: Copy the rest of the app source
+RUN npm install --only=production
 COPY . .
 
-# Step 5: Expose the port the app runs on
+# Step 2: Final image
+FROM node:20-slim
+WORKDIR /app
+COPY --from=builder /app /app
 EXPOSE 5000
-
-# Step 6: Set the default command
-CMD ["npm", "run", "dev"]
+CMD ["node", "server.js"]

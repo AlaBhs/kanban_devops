@@ -7,7 +7,6 @@ kanban-frontend/build/
 
 # Frontend environment files
 kanban-frontend/.env*
-kanban-frontend/public/env.js
 kanban-frontend/.DS_Store
 
 # Frontend logs

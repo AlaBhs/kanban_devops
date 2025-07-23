@@ -1,0 +1,48 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URI: mongodb://localhost:27017
+      JWT_SECRET: testsecret
+      NODE_ENV: test
+      
+    services:
+      mongo:
+        image: mongo
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: 🧾 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: 📦 Install backend dependencies
+        working-directory: ./kanban-backend
+        run: npm install
+
+      - name: ✅ Run backend tests
+        working-directory: ./kanban-backend
+        run: npm test
+
+      - name: 📦 Install frontend dependencies
+        working-directory: ./kanban-frontend
+        run: npm install
+
+      - name: 🐳 Build backend Docker image
+        run: docker build -t kanban-backend ./kanban-backend
+
+      - name: 🐳 Build frontend Docker image
+        run: docker build -t kanban-frontend ./kanban-frontend

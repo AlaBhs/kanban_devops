@@ -3,20 +3,35 @@ const User = require('../models/User');
 
 // 🔧 Admin: Create a task for their worker
 const createTask = async (req, res) => {
-  const { title, assignedTo } = req.body;
+  try {
+    const { title, assignedTo } = req.body;
 
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Only admins can create tasks' });
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only admins can create tasks' });
+    }
+
+    const worker = await User.findOne({ 
+      _id: assignedTo, 
+      role: 'worker', 
+      admin: req.user.id 
+    });
+    
+    if (!worker) {
+      return res.status(404).json({ 
+        message: 'Worker not found or not under your account' 
+      });
+    }
+
+    const task = await Task.create({ 
+      title, 
+      assignedTo: worker._id,
+      status: 'todo'
+    });
+    
+    res.status(201).json(task);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
-
-  // Check that the worker belongs to the admin
-  const worker = await User.findOne({ _id: assignedTo, role: 'worker', admin: req.user.id });
-  if (!worker) {
-    return res.status(404).json({ message: 'Worker not found or not under your account' });
-  }
-
-  const task = await Task.create({ title, assignedTo: worker._id });
-  res.status(201).json(task);
 };
 
 // 👨‍🔧 Worker: Get own tasks

@@ -97,6 +97,6 @@ jobs:
       # 11. Smoke-test the frontend UI
       - name: 🔍 Smoke test frontend
         run: |
-          kubectl port-forward svc/frontend 3000:80 &
+          kubectl port-forward svc/kanban-frontend-service 3000:80 &
           sleep 5
           curl --fail http://localhost:3000/ || (echo '❌ Frontend not responding' && exit 1)

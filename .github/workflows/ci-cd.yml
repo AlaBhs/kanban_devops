@@ -11,8 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      MONGO_URI: mongodb://localhost:27017
       JWT_SECRET: testsecret
       NODE_ENV: test
+      
+    services:
+      mongo:
+        image: mongo
+        ports:
+          - 27017:27017
 
     steps:
       # 1. Checkout code
@@ -28,7 +35,7 @@ jobs:
       # 3. Install & test backend
       - name: 📦 Install backend dependencies
         working-directory: ./kanban-backend
-        run: npm ci
+        run: npm install
 
       - name: ✅ Run backend tests
         working-directory: ./kanban-backend
@@ -37,7 +44,7 @@ jobs:
       # 4. Install frontend dependencies
       - name: 📦 Install frontend dependencies
         working-directory: ./kanban-frontend
-        run: npm ci
+        run: npm install
 
       # 5. Build Docker images
       - name: 🐳 Build backend Docker image

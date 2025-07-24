@@ -85,7 +85,8 @@ jobs:
 
       - name: ⏳ Wait for frontend to be ready
         run: kubectl rollout status deployment/frontend --timeout=120s
-
+      - name: 🔍 List services
+        run: kubectl get svc
       # 10. Smoke-test the backend API
       - name: 🔍 Smoke test backend
         run: |

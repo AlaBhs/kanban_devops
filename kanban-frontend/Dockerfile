@@ -1,5 +1,5 @@
 # Step 1: Use Node to build the React app
-FROM node:20 as builder
+FROM node:20 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --network-timeout=1200000

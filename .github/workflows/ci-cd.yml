@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI + CD (KinD)
 
 on:
   push:
@@ -7,42 +7,94 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
+
     env:
-      MONGO_URI: mongodb://localhost:27017
       JWT_SECRET: testsecret
       NODE_ENV: test
-      
-    services:
-      mongo:
-        image: mongo
-        ports:
-          - 27017:27017
 
     steps:
-      - name: 🧾 Checkout code
+      # 1. Check out source
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🟢 Set up Node.js
+      # 2. Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: 📦 Install backend dependencies
+      # 3. Install & test backend
+      - name: Install backend dependencies
         working-directory: ./kanban-backend
-        run: npm install
+        run: npm ci
 
-      - name: ✅ Run backend tests
+      - name: Run backend tests
         working-directory: ./kanban-backend
         run: npm test
 
-      - name: 📦 Install frontend dependencies
+      # 4. Install frontend deps (no tests yet)
+      - name: Install frontend dependencies
         working-directory: ./kanban-frontend
-        run: npm install
+        run: npm ci
 
-      - name: 🐳 Build backend Docker image
-        run: docker build -t kanban-backend ./kanban-backend
+      # 5. Build Docker images
+      - name: Build backend image
+        run: docker build -t kanban-backend:ci ./kanban-backend
 
-      - name: 🐳 Build frontend Docker image
-        run: docker build -t kanban-frontend ./kanban-frontend
+      - name: Build frontend image
+        run: docker build -t kanban-frontend:ci ./kanban-frontend
+
+      # 6. Set up KinD (Kubernetes-in-Docker)
+      - name: Set up KinD cluster
+        uses: engineerd/setup-kind@v0.6.1
+        with:
+          version: v0.20.0
+
+      # 7. Install kubectl
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.27.0'
+
+      # 8. Load images into KinD
+      - name: Load backend image into KinD
+        run: kind load docker-image kanban-backend:ci
+
+      - name: Load frontend image into KinD
+        run: kind load docker-image kanban-frontend:ci
+
+      # 9. Apply your k8s manifests
+      - name: Deploy MongoDB
+        run: kubectl apply -f k8s/database/
+
+      - name: Deploy Backend
+        run: kubectl apply -f k8s/backend/
+
+      - name: Deploy Frontend
+        run: kubectl apply -f k8s/frontend/
+
+      # 10. Wait for rollouts
+      - name: Wait for MongoDB
+        run: kubectl rollout status deployment/mongo -n default --timeout=120s
+
+      - name: Wait for Backend
+        run: kubectl rollout status deployment/backend -n default --timeout=120s
+
+      - name: Wait for Frontend
+        run: kubectl rollout status deployment/frontend -n default --timeout=120s
+
+      # 11. Smoke-test the API
+      - name: Smoke-test backend
+        run: |
+          kubectl port-forward svc/kanban-backend-service 5000:5000 &
+          sleep 5
+          curl --fail http://localhost:5000/ || (echo 'Backend unresponsive' && exit 1)
+
+      # 12. Smoke-test the UI
+      - name: Smoke-test frontend
+        run: |
+          kubectl port-forward svc/frontend 3000:80 &
+          sleep 5
+          curl --fail http://localhost:3000/ || (echo 'Frontend unresponsive' && exit 1)

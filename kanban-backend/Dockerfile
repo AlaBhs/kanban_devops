@@ -1,5 +1,5 @@
 # Step 1: Builder stage
-FROM node:20 as builder
+FROM node:20 AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --only=production

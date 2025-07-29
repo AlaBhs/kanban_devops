@@ -1,4 +1,4 @@
-name: CI + CD (KinD)
+name: CI PIPELINE (KinD)
 
 on:
   push:

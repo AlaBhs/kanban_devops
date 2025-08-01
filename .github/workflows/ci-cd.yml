@@ -67,18 +67,20 @@ jobs:
     needs: docker-build-push
 
     steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
       - name: Restore kubeconfig from secret
         run: |
           echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > kubeconfig
         shell: bash
 
-      - name: Install kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
+      - name: Set KUBECONFIG env var
+        run: echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
 
-      - name: Sync ArgoCD App
+      - name: Restart deployment in cluster
         run: |
-          export KUBECONFIG=$PWD/kubeconfig
           kubectl -n argocd rollout restart deployment kanban-app
+

@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: tododevops-frontend
-          image: alabenhadjsalem/tododevops-frontend:latest
+          image: alabenhadjsalem/kanban-frontend:latest
           ports:
             - containerPort: 80
           resources:

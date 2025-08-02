@@ -2,85 +2,81 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
     services:
       mongo:
-        image: mongo
-        ports:
-          - 27017:27017
+        image: mongo:6
+        ports: ['27017:27017']
     env:
       MONGO_URI: mongodb://localhost:27017
       JWT_SECRET: testsecret
       NODE_ENV: test
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with: { node-version: '18' }
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install backend dependencies
+      - name: Install & test backend
         working-directory: ./kanban-backend
-        run: npm install
+        run: |
+          npm install
+          npm test
 
-      - name: Run backend tests
-        working-directory: ./kanban-backend
-        run: npm test
-
-      - name: Install frontend dependencies
+      - name: Install frontend deps
         working-directory: ./kanban-frontend
         run: npm install
 
   docker-build-push:
     runs-on: ubuntu-latest
     needs: build-test
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Backend Image
+      - name: Build & push backend image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest ./kanban-backend
           docker push ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest
 
-      - name: Build and Push Frontend Image
+      - name: Build & push frontend image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest ./kanban-frontend
           docker push ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest
 
-  deploy:
+  bump-manifests:
     runs-on: ubuntu-latest
     needs: docker-build-push
 
     steps:
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
+      - uses: actions/checkout@v3
 
-      - name: Restore kubeconfig from secret
+      - name: Configure Git
         run: |
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > kubeconfig
-        shell: bash
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Set KUBECONFIG env var
-        run: echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
-
-      - name: Restart deployment in cluster
+      - name: Bump backend image tag
         run: |
-          kubectl -n argocd rollout restart deployment kanban-app
+          sed -i 's|\(image: *'"${{ secrets.DOCKER_USERNAME }}/kanban-backend:"').*|\1latest|' k8s/backend/backend-deployment.yaml
 
+      - name: Bump frontend image tag
+        run: |
+          sed -i 's|\(image: *'"${{ secrets.DOCKER_USERNAME }}/kanban-frontend:"').*|\1latest|' k8s/frontend/frontend-deployment.yaml
+
+      - name: Commit & Push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add k8s/backend/backend-deployment.yaml k8s/frontend/frontend-deployment.yaml
+          git commit -m "ci: bump images to latest"
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} HEAD:main

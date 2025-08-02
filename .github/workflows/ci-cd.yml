@@ -65,13 +65,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump backend image tag
+      - name: Bump backend image tag to latest
         run: |
-          sed -i 's|\(image: *'"${{ secrets.DOCKER_USERNAME }}/kanban-backend:"').*|\1latest|' k8s/backend/backend-deployment.yaml
-
-      - name: Bump frontend image tag
+          sed -i 's|\(image: .*/kanban-backend:\).*|\1latest|' k8s/backend/backend-deployment.yaml
+      - name: Bump frontend image tag to latest
         run: |
-          sed -i 's|\(image: *'"${{ secrets.DOCKER_USERNAME }}/kanban-frontend:"').*|\1latest|' k8s/frontend/frontend-deployment.yaml
+          sed -i 's|\(image: .*/kanban-frontend:\).*|\1latest|' k8s/frontend/frontend-deployment.yaml
 
       - name: Commit & Push
         env:

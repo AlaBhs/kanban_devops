@@ -85,6 +85,11 @@ jobs:
         run: |
           sed -i 's|\(image: *alabenhadjsalem/kanban-frontend:\).*|\1${{ steps.vars.outputs.sha_short }}|' k8s/frontend/frontend-deployment.yaml
 
+      - name: Debug Git Remote & Auth
+        run: |
+          git remote -v
+          git config --list
+          curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" https://api.github.com/user
       - name: Commit and push changes
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

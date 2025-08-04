@@ -91,6 +91,8 @@ jobs:
 
       - name: Commit and push changes
         run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
           git add k8s/backend/backend-deployment.yaml k8s/frontend/frontend-deployment.yaml
           git commit -m "ci: bump image tags to ${{ steps.vars.outputs.sha_short }}"
-          git push origin HEAD:main
+          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/AlaBhs/kanban_devops.git HEAD:main

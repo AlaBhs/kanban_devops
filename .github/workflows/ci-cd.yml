@@ -68,33 +68,29 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Extract short SHA again
+      - name: Set version short SHA
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump backend image tag
+      - name: Update backend image tag
         run: |
           sed -i 's|\(image: *alabenhadjsalem/kanban-backend:\).*|\1${{ steps.vars.outputs.sha_short }}|' k8s/backend/backend-deployment.yaml
 
-      - name: Bump frontend image tag
+      - name: Update frontend image tag
         run: |
           sed -i 's|\(image: *alabenhadjsalem/kanban-frontend:\).*|\1${{ steps.vars.outputs.sha_short }}|' k8s/frontend/frontend-deployment.yaml
 
-      - name: Debug Git Remote & Auth
+      - name: Configure Git identity
         run: |
-          git remote -v
-          git config --list
-          curl -H "Authorization: token ${{ secrets.GH_TOKEN }}" https://api.github.com/user
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Set authenticated remote
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}
+
       - name: Commit and push changes
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
           git add k8s/backend/backend-deployment.yaml k8s/frontend/frontend-deployment.yaml
           git commit -m "ci: bump image tags to ${{ steps.vars.outputs.sha_short }}"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/AlaBhs/kanban_devops.git HEAD:main
-
+          git push origin HEAD:main

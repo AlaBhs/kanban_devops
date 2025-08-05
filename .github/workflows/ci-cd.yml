@@ -1,85 +1,62 @@
-name: CI + CD with ArgoCD Sync
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build-test-and-deploy:
+  build-test:
     runs-on: ubuntu-latest
-
     services:
       mongo:
         image: mongo:6
         ports: ['27017:27017']
-
     env:
       MONGO_URI: mongodb://localhost:27017
       JWT_SECRET: testsecret
       NODE_ENV: test
 
     steps:
-      # 1. Checkout
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      # 2. Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # 3. Backend test
       - name: Install & test backend
         working-directory: ./kanban-backend
         run: |
           npm ci
           npm test
 
-      # 4. Frontend deps
       - name: Install frontend deps
         working-directory: ./kanban-frontend
         run: npm ci
 
-      # 5. Docker buildx + login
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: build-test
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Extract short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 6. Build & push backend:latest
       - name: Build & push backend image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest ./kanban-backend
           docker push ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest
 
-      # 7. Build & push frontend:latest
       - name: Build & push frontend image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest ./kanban-frontend
           docker push ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest
-
-      # 8. Install argocd CLI
-      - name: Install Argo CD CLI
-        run: |
-          curl -fsSL -o /usr/local/bin/argocd \
-            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          chmod +x /usr/local/bin/argocd
-
-      # 9. Trigger Argo CD sync
-      - name: Trigger ArgoCD application sync
-        env:
-          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-          ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
-        run: |
-          # login to ArgoCD (server is host:port)
-          argocd login $ARGOCD_SERVER \
-            --username admin \
-            --password $ARGOCD_TOKEN \
-            --insecure
-          # sync the 'kanban' app
-          argocd app sync kanban

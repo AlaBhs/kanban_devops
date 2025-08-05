@@ -15,6 +15,7 @@ spec:
       containers:
         - name: backend
           image: alabenhadjsalem/kanban-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           envFrom:

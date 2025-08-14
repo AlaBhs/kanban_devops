@@ -1,58 +1,100 @@
-name: CI/CD Pipeline
+name: CI PIPELINE (KinD)
 
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
-    services:
-      mongo:
-        image: mongo:6
-        ports: ['27017:27017']
+
     env:
       MONGO_URI: mongodb://localhost:27017
       JWT_SECRET: testsecret
       NODE_ENV: test
+      
+    services:
+      mongo:
+        image: mongo
+        ports:
+          - 27017:27017
 
     steps:
-      - uses: actions/checkout@v3
+      # 1. Checkout code
+      - name: 🧾 Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v3
+      # 2. Set up Node.js
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Install & test backend
+      # 3. Install & test backend
+      - name: 📦 Install backend dependencies
         working-directory: ./kanban-backend
-        run: |
-          npm install
-          npm test
+        run: npm install
 
-      - name: Install frontend deps
+      - name: ✅ Run backend tests
+        working-directory: ./kanban-backend
+        run: npm test
+
+      # 4. Install frontend dependencies
+      - name: 📦 Install frontend dependencies
         working-directory: ./kanban-frontend
         run: npm install
 
-  docker-build-push:
-    runs-on: ubuntu-latest
-    needs: build-test
+      # 5. Build Docker images
+      - name: 🐳 Build backend Docker image
+        run: docker build -t kanban-backend:ci ./kanban-backend
 
-    steps:
-      - uses: actions/checkout@v3
+      - name: 🐳 Build frontend Docker image
+        run: docker build -t kanban-frontend:ci ./kanban-frontend
 
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build & push backend image
+      # 6. Create KinD cluster
+      - name: 🛠️ Create KinD cluster
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest ./kanban-backend
-          docker push ${{ secrets.DOCKER_USERNAME }}/kanban-backend:latest
+          kind create cluster --wait 60s
+          kubectl cluster-info
+      # 7. Load images into KinD
+      - name: 🐳 Load backend image into KinD
+        run: kind load docker-image kanban-backend:ci
 
-      - name: Build & push frontend image
+      - name: 🐳 Load frontend image into KinD
+        run: kind load docker-image kanban-frontend:ci
+
+      # 8. Deploy to Kubernetes
+      - name: 📦 Apply MongoDB manifests
+        run: kubectl apply -f k8s/database/
+
+      - name: 📦 Apply backend manifests
+        run: kubectl apply -f k8s/backend/
+
+      - name: 📦 Apply frontend manifests
+        run: kubectl apply -f k8s/frontend/
+
+      # 9. Wait for deployments
+      - name: ⏳ Wait for MongoDB to be ready
+        run: kubectl rollout status deployment/mongo --timeout=120s
+
+      - name: ⏳ Wait for backend to be ready
+        run: kubectl rollout status deployment/backend --timeout=120s
+
+      - name: ⏳ Wait for frontend to be ready
+        run: kubectl rollout status deployment/frontend --timeout=120s
+      - name: 🔍 List services
+        run: kubectl get svc
+      # 10. Smoke-test the backend API
+      - name: 🔍 Smoke test backend
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest ./kanban-frontend
-          docker push ${{ secrets.DOCKER_USERNAME }}/kanban-frontend:latest
+          kubectl port-forward svc/kanban-backend-service 5000:5000 &
+          sleep 5
+          curl --fail http://localhost:5000/ || (echo '❌ Backend not responding' && exit 1)
+      # 11. Smoke-test the frontend UI
+      - name: 🔍 Smoke test frontend
+        run: |
+          kubectl port-forward svc/kanban-frontend-service 3000:80 &
+          sleep 5
+          curl --fail http://localhost:3000/ || (echo '❌ Frontend not responding' && exit 1)

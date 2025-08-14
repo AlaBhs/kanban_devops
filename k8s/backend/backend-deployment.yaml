@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
+  namespace: kanban 
 spec:
   replicas: 1
   selector:
@@ -14,8 +15,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: alabenhadjsalem/kanban-backend:latest
-          imagePullPolicy: Always
+          image: alabenhadjsalem/kanban-backend:metrics
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           envFrom:

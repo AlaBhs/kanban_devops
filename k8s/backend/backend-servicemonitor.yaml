@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kanban-backend-monitor
+  namespace: monitoring
+  labels:
+    release: prometheus-stack
+    app: kanban-backend
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 20s
+      scheme: http
+  namespaceSelector:
+    matchNames:
+      - kanban

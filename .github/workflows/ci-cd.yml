@@ -65,7 +65,10 @@ jobs:
       - name: 🐳 Load frontend image into KinD
         run: kind load docker-image kanban-frontend:ci
 
-      # 8. Deploy to Kubernetes
+      # 8. Deploy to Kubernetes    
+      - name: 🏗️ Create kanban namespace
+        run: kubectl create namespace kanban
+
       - name: 📦 Apply MongoDB manifests
         run: kubectl apply -f k8s/database/
 

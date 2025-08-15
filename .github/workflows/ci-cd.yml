@@ -58,6 +58,7 @@ jobs:
         run: |
           kind create cluster --wait 60s
           kubectl cluster-info
+
       # 7. Load images into KinD
       - name: 🐳 Load backend image into KinD
         run: kind load docker-image kanban-backend:ci
@@ -65,43 +66,46 @@ jobs:
       - name: 🐳 Load frontend image into KinD
         run: kind load docker-image kanban-frontend:ci
 
-      # 8. Deploy to Kubernetes    
+      # 8. Deploy to Kubernetes
       - name: 🏗️ Create kanban namespace
         run: kubectl create namespace kanban
 
       - name: 📦 Apply MongoDB manifests
-        run: kubectl apply -f k8s/database/
+        run: kubectl apply -f k8s/database/ -n kanban
 
       - name: 📦 Apply backend manifests
         run: |
-          kubectl apply -f k8s/backend/backend-configmap.yaml
-          kubectl apply -f k8s/backend/backend-deployment.yaml
-          kubectl apply -f k8s/backend/backend-secret.yaml
-          kubectl apply -f k8s/backend/backend-service.yaml
+          kubectl apply -f k8s/backend/backend-configmap.yaml  -n kanban
+          kubectl apply -f k8s/backend/backend-deployment.yaml  -n kanban
+          kubectl apply -f k8s/backend/backend-secret.yaml  -n kanban
+          kubectl apply -f k8s/backend/backend-service.yaml  -n kanban
 
       - name: 📦 Apply frontend manifests
-        run: kubectl apply -f k8s/frontend/
+        run: kubectl apply -f k8s/frontend/ -n kanban
 
       # 9. Wait for deployments
       - name: ⏳ Wait for MongoDB to be ready
-        run: kubectl rollout status deployment/mongo --timeout=120s
+        run: kubectl rollout status deployment/mongo -n kanban --timeout=120s
 
       - name: ⏳ Wait for backend to be ready
-        run: kubectl rollout status deployment/backend --timeout=120s
+        run: kubectl rollout status deployment/backend -n kanban --timeout=120s
 
       - name: ⏳ Wait for frontend to be ready
-        run: kubectl rollout status deployment/frontend --timeout=120s
+        run: kubectl rollout status deployment/frontend -n kanban --timeout=120s
+
       - name: 🔍 List services
-        run: kubectl get svc
+        run: kubectl get svc -n kanban
+
       # 10. Smoke-test the backend API
       - name: 🔍 Smoke test backend
         run: |
-          kubectl port-forward svc/kanban-backend-service 5000:5000 &
+          kubectl port-forward svc/kanban-backend-service -n kanban 5000:5000 &
           sleep 5
           curl --fail http://localhost:5000/ || (echo '❌ Backend not responding' && exit 1)
+
       # 11. Smoke-test the frontend UI
       - name: 🔍 Smoke test frontend
         run: |
-          kubectl port-forward svc/kanban-frontend-service 3000:80 &
+          kubectl port-forward svc/kanban-frontend-service -n kanban 3000:80 &
           sleep 5
           curl --fail http://localhost:3000/ || (echo '❌ Frontend not responding' && exit 1)

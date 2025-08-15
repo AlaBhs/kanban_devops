@@ -73,7 +73,11 @@ jobs:
         run: kubectl apply -f k8s/database/
 
       - name: 📦 Apply backend manifests
-        run: kubectl apply -f k8s/backend/
+        run: |
+          kubectl apply -f k8s/backend/backend-configmap.yaml
+          kubectl apply -f k8s/backend/backend-deployment.yaml
+          kubectl apply -f k8s/backend/backend-secret.yaml
+          kubectl apply -f k8s/backend/backend-service.yaml
 
       - name: 📦 Apply frontend manifests
         run: kubectl apply -f k8s/frontend/
